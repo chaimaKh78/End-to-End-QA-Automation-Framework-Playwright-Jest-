@@ -15,8 +15,6 @@ It demonstrates a **QA engineering approach**, combining:
 
 The framework ensures **functional correctness, data consistency, and user experience reliability** across the entire application stack.
 
----
-
 ## 🎯 QA Objectives (Senior-Level Focus)
 
 This project was designed to validate:
@@ -45,8 +43,6 @@ This project was designed to validate:
 * Coverage enforcement
 * Regression safety net
 
----
-
 ## 🧠 Test Strategy (Risk-Based Approach)
 
 Instead of testing everything equally, this framework prioritizes **business-critical flows**:
@@ -69,8 +65,6 @@ Instead of testing everything equally, this framework prioritizes **business-cri
 * Page layout rendering
 * Static UI elements
 
----
-
 ## 🏗️ Architecture
 
 ```text id="arch1"
@@ -85,9 +79,6 @@ tests/
  ├── api/        → Integration tests (Jest)
  ├── e2e/        → UI tests (Playwright)
 ```
-
----
-
 ## 🧪 Testing Layers
 
 ### 🔹 1. API Layer (Jest – Integration Tests)
@@ -101,9 +92,7 @@ Covers:
 * Resource not found (404 errors)
 * Service-layer logic
 
-👉 Focus: **data integrity & backend reliability**
-
----
+ Focus: **data integrity & backend reliability**
 
 ### 🔹 2. UI Layer (Playwright – E2E Tests)
 
@@ -116,9 +105,7 @@ Covers:
 * UI + API synchronization
 * Real-time state updates
 
-👉 Focus: **user experience & system integration**
-
----
+ Focus: **user experience & system integration**
 
 ## ⚙️ CI/CD Strategy (Quality Gates)
 
@@ -135,7 +122,6 @@ unit-tests → api-tests → e2e-tests
 * Coverage thresholds act as **quality gates**
 * Artifacts stored for debugging (Playwright reports)
 
----
 
 ## 📊 Code Coverage Policy
 
@@ -159,7 +145,6 @@ coverageThreshold: {
 * Line coverage ensures **execution completeness**
 * Thresholds are tuned for **early-stage project maturity**
 
----
 
 ## 🧪 Key Test Scenarios
 
@@ -182,7 +167,6 @@ coverageThreshold: {
 * Modal confirmation prevents accidental deletion
 * Completed tasks visually marked
 
----
 
 ## 🧱 Engineering Practices
 
@@ -194,29 +178,12 @@ This framework applies:
 * Independent test execution (no dependencies between tests)
 * CI-first design (tests validated in pipeline, not locally only)
 
----
-
 ## 🛠️ Tech Stack
 
 * **Playwright** → End-to-End testing
 * **Jest** → API & integration testing
 * **Node.js / Express** → Backend application
 * **GitHub Actions** → CI/CD automation
-
----
-
-## 📈 What This Project Demonstrates (Senior Level Signals)
-
-This project highlights:
-
-✔ Test architecture design (not just test writing)
-✔ Risk-based QA strategy
-✔ CI/CD pipeline integration
-✔ Multi-layer validation (API + UI)
-✔ Production-style quality enforcement
-✔ Debuggable and maintainable automation framework
-
----
 
 ## 👤 Author
 
