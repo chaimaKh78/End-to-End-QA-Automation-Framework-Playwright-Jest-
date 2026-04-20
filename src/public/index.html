@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskManager</title>
+  <style>
+    :root { --bg: #f6f7fb; --card: #ffffff; --text: #1f2937; --muted: #6b7280; --accent: #2563eb; --danger: #dc2626; --success: #16a34a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: var(--text); }
+    .container { max-width: 980px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { margin: 0 0 8px; font-size: 2rem; }
+    .sub { color: var(--muted); margin-bottom: 24px; }
+    .grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+    .card { background: var(--card); border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+    form { display: grid; grid-template-columns: 1.6fr .8fr .8fr auto; gap: 12px; }
+    input, select, button { border-radius: 12px; border: 1px solid #d1d5db; padding: 12px 14px; font-size: 14px; }
+    button { cursor: pointer; border: none; background: var(--accent); color: white; font-weight: 600; }
+    button.secondary { background: #e5e7eb; color: #111827; }
+    button.danger { background: var(--danger); }
+    ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    li.task { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 14px; border: 1px solid #e5e7eb; border-radius: 16px; }
+    .task-main { display: flex; flex-direction: column; gap: 4px; }
+    .task-title { font-weight: 700; }
+    .task-meta { color: var(--muted); font-size: 13px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; }
+    .task-done .task-title { text-decoration: line-through; color: var(--muted); }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: none; align-items: center; justify-content: center; padding: 20px; }
+    .modal { background: white; border-radius: 18px; max-width: 420px; width: 100%; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,.22); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .empty { color: var(--muted); padding: 12px 0; }
+    @media (max-width: 760px) {
+      form { grid-template-columns: 1fr; }
+      li.task { grid-template-columns: 1fr; }
+      .actions { justify-content: flex-start; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Mes Tâches</h1>
+    <p class="sub">TaskManager – démonstration CRUD avec API, tests et CI/CD.</p>
+
+    <div class="grid">
+      <div class="card">
+        <form id="taskForm">
+          <input data-testid="task-title-input" id="taskTitle" type="text" placeholder="Titre de la tâche" />
+          <select data-testid="task-priority" id="taskPriority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+          <select id="taskStatus">
+            <option value="todo" selected>Todo</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+          <button data-testid="create-task-btn" type="submit">Créer</button>
+        </form>
+        <div id="message" style="margin-top:12px;color:#dc2626;"></div>
+      </div>
+
+      <div class="card">
+        <ul data-testid="task-list" id="taskList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="deleteModal" aria-hidden="true">
+    <div class="modal">
+      <h2 style="margin-top:0;">Supprimer la tâche ?</h2>
+      <p id="deleteText" style="color:#6b7280;">Cette action est irréversible.</p>
+      <div class="modal-actions">
+        <button class="secondary" id="cancelDeleteBtn" type="button">Annuler</button>
+        <button class="danger" data-testid="confirm-delete-btn" id="confirmDeleteBtn" type="button">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const taskForm = document.getElementById('taskForm');
+    const taskTitle = document.getElementById('taskTitle');
+    const taskPriority = document.getElementById('taskPriority');
+    const taskStatus = document.getElementById('taskStatus');
+    const taskList = document.getElementById('taskList');
+    const message = document.getElementById('message');
+    const deleteModal = document.getElementById('deleteModal');
+    const deleteText = document.getElementById('deleteText');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+    let taskToDeleteId = null;
+
+    function badgeForPriority(priority) {
+      return priority.charAt(0).toUpperCase() + priority.slice(1);
+    }
+
+    function showMessage(text, isError = true) {
+      message.style.color = isError ? '#dc2626' : '#16a34a';
+      message.textContent = text;
+      if (text) {
+        setTimeout(() => {
+          if (message.textContent === text) message.textContent = '';
+        }, 2500);
+      }
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const error = new Error(data.message || `HTTP ${res.status}`);
+        error.response = { status: res.status, data };
+        throw error;
+      }
+      return data;
+    }
+
+    function renderTasks(tasks) {
+      taskList.innerHTML = '';
+      if (!tasks.length) {
+        const li = document.createElement('li');
+        li.className = 'empty';
+        li.textContent = 'Aucune tâche pour le moment.';
+        taskList.appendChild(li);
+        return;
+      }
+
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        li.className = 'task' + (task.status === 'done' ? ' task-done' : '');
+        li.dataset.id = task.id;
+
+        const main = document.createElement('div');
+        main.className = 'task-main';
+
+        const title = document.createElement('div');
+        title.className = 'task-title';
+        title.textContent = task.title;
+
+        const meta = document.createElement('div');
+        meta.className = 'task-meta';
+        meta.innerHTML = `
+          <span class="badge">Priorité: ${badgeForPriority(task.priority)}</span>
+          <span>Statut: ${task.status}</span>
+        `;
+
+        main.appendChild(title);
+        main.appendChild(meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+
+        const doneBtn = document.createElement('button');
+        doneBtn.type = 'button';
+        doneBtn.dataset.testid = 'task-done-btn';
+        doneBtn.textContent = task.status === 'done' ? 'Terminée' : 'Done';
+        doneBtn.className = 'secondary';
+        doneBtn.addEventListener('click', async () => {
+          try {
+            await api(`/api/tasks/${task.id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ status: 'done' })
+            });
+            await loadTasks();
+          } catch (error) {
+            showMessage(error.message);
+          }
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.dataset.testid = 'delete-task-btn';
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.className = 'danger';
+        deleteBtn.addEventListener('click', () => {
+          taskToDeleteId = task.id;
+          deleteText.textContent = `Supprimer "${task.title}" ?`;
+          deleteModal.style.display = 'flex';
+          deleteModal.setAttribute('aria-hidden', 'false');
+        });
+
+        actions.appendChild(doneBtn);
+        actions.appendChild(deleteBtn);
+
+        li.appendChild(main);
+        li.appendChild(actions);
+        taskList.appendChild(li);
+      });
+    }
+
+    async function loadTasks() {
+      const data = await api('/api/tasks');
+      renderTasks(data.data || []);
+    }
+
+    taskForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showMessage('');
+
+      try {
+        await api('/api/tasks', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: taskTitle.value,
+            priority: taskPriority.value,
+            status: taskStatus.value
+          })
+        });
+
+        taskTitle.value = '';
+        taskPriority.value = 'medium';
+        taskStatus.value = 'todo';
+        await loadTasks();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    });
+
+    cancelDeleteBtn.addEventListener('click', () => {
+      taskToDeleteId = null;
+      deleteModal.style.display = 'none';
+      deleteModal.setAttribute('aria-hidden', 'true');
+    });
+
+    confirmDeleteBtn.addEventListener('click', async () => {
+      if (!taskToDeleteId) return;
+      try {
+        await api(`/api/tasks/${taskToDeleteId}`, { method: 'DELETE' });
+        taskToDeleteId = null;
+        deleteModal.style.display = 'none';
+        deleteModal.setAttribute('aria-hidden', 'true');
+        await loadTasks();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    });
+
+    loadTasks().catch(error => showMessage(error.message));
+  </script>
+</body>
+</html>
